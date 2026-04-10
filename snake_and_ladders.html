@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake & Ladders</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --surface: #1a1930;
+    --panel: #22213a;
+    --accent: #f7b731;
+    --accent2: #ff6b6b;
+    --accent3: #4ecdc4;
+    --accent4: #a29bfe;
+    --text: #fffffe;
+    --muted: #a8a8c0;
+    --cell-light: #2a294a;
+    --cell-dark: #22213a;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  h1, h2, .title-font { font-family: 'Fredoka One', cursive; }
+
+  /* ── STARS BG ── */
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at 20% 20%, #1a0a3a 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, #0a1a2a 0%, transparent 60%);
+  }
+  .stars::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 40%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 10%, rgba(255,255,255,0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 65%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 30%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 45% 75%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 90%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 5% 80%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 50%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 25% 60%, rgba(255,255,255,0.5) 0%, transparent 100%);
+  }
+
+  /* ── SCREENS ── */
+  .screen { position: relative; z-index: 1; display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; }
+
+  /* ── LOGO ── */
+  .logo { font-family: 'Fredoka One', cursive; font-size: clamp(2.4rem, 6vw, 4.5rem); text-align: center; line-height: 1.1; margin-bottom: .4rem; }
+  .logo span:nth-child(1) { color: var(--accent2); }
+  .logo span:nth-child(2) { color: var(--text); }
+  .logo span:nth-child(3) { color: var(--accent3); }
+  .logo-sub { color: var(--muted); font-size: .95rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 2.5rem; text-align: center; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 2rem 2.4rem;
+    width: 100%; max-width: 480px;
+  }
+  .card h2 { font-size: 1.4rem; margin-bottom: 1.4rem; color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+    padding: .72rem 2rem;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s, opacity .15s;
+    display: inline-flex; align-items: center; gap: .5rem;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #1a1200; box-shadow: 0 4px 20px rgba(247,183,49,.3); }
+  .btn-primary:hover { box-shadow: 0 6px 28px rgba(247,183,49,.5); }
+  .btn-secondary { background: var(--accent4); color: #1a1040; box-shadow: 0 4px 20px rgba(162,155,254,.3); }
+  .btn-outline { background: transparent; color: var(--text); border: 1.5px solid rgba(255,255,255,0.2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { font-size: .9rem; padding: .45rem 1.2rem; }
+  .btn-danger { background: var(--accent2); color: #fff; }
+  .btn:disabled { opacity: .4; pointer-events: none; }
+
+  /* ── PLAYER COUNT ── */
+  .player-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin-bottom: 1.6rem; }
+  .player-count-btn {
+    aspect-ratio: 1;
+    background: var(--panel);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+  }
+  .player-count-btn span.label { font-family: 'Nunito', sans-serif; font-size: .7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .player-count-btn.selected { border-color: var(--accent); color: var(--accent); background: rgba(247,183,49,.12); }
+  .player-count-btn:hover:not(.selected) { border-color: rgba(255,255,255,.25); color: var(--text); }
+
+  /* ── STYLE CHOOSER ── */
+  .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.6rem; }
+  .style-card {
+    background: var(--panel);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all .2s;
+    text-align: center;
+  }
+  .style-card .icon { font-size: 2.4rem; margin-bottom: .4rem; display: block; }
+  .style-card .name { font-family: 'Fredoka One', cursive; font-size: 1.1rem; margin-bottom: .2rem; }
+  .style-card .desc { font-size: .72rem; color: var(--muted); line-height: 1.4; }
+  .style-card.selected { border-color: var(--accent3); background: rgba(78,205,196,.1); }
+  .style-card:hover:not(.selected) { border-color: rgba(255,255,255,.25); }
+
+  /* ── PLAYER NAME INPUTS ── */
+  .player-name-row { display: flex; align-items: center; gap: .8rem; margin-bottom: .8rem; }
+  .player-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .name-input {
+    flex: 1;
+    background: var(--panel);
+    border: 1.5px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: .55rem 1rem;
+    font-family: 'Nunito', sans-serif;
+    font-size: .95rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .name-input:focus { border-color: var(--accent4); }
+
+  /* ── GAME LAYOUT ── */
+  #gameScreen { padding: 1rem; align-items: flex-start; justify-content: flex-start; }
+  .game-layout {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.2rem;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .game-layout { grid-template-columns: 1fr; }
+    .game-sidebar { order: 2; }
+    .board-wrap { order: 1; }
+  }
+
+  /* ── BOARD ── */
+  .board-wrap { background: var(--surface); border-radius: var(--radius); padding: 1rem; border: 1.5px solid rgba(255,255,255,.08); }
+  .board-title { font-family: 'Fredoka One', cursive; font-size: 1.2rem; text-align: center; margin-bottom: .8rem; color: var(--accent); }
+  #boardCanvas { display: block; width: 100%; height: auto; border-radius: 10px; }
+
+  /* ── SIDEBAR ── */
+  .game-sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ── RACE TRACK ── */
+  .race-panel { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.2rem; border: 1.5px solid rgba(255,255,255,.08); }
+  .race-panel h3 { font-family: 'Fredoka One', cursive; font-size: 1.1rem; color: var(--accent3); margin-bottom: .9rem; }
+  .race-row { margin-bottom: .7rem; }
+  .race-row .race-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .3rem; }
+  .race-name { font-weight: 700; font-size: .85rem; display: flex; align-items: center; gap: .4rem; }
+  .race-pos { font-family: 'Fredoka One', cursive; font-size: .9rem; }
+  .race-bar-bg { height: 10px; border-radius: 100px; background: var(--panel); overflow: hidden; }
+  .race-bar { height: 100%; border-radius: 100px; transition: width .8s cubic-bezier(.34,1.56,.64,1); }
+
+  /* ── CURRENT PLAYER PANEL ── */
+  .current-panel { background: var(--surface); border-radius: var(--radius); padding: 1.2rem; border: 1.5px solid rgba(255,255,255,.08); text-align: center; }
+  .turn-label { font-size: .72rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: .4rem; }
+  .turn-name { font-family: 'Fredoka One', cursive; font-size: 1.6rem; margin-bottom: .8rem; }
+  .dice-display { font-size: 3.5rem; margin-bottom: .8rem; display: inline-block; transition: transform .3s; line-height: 1; }
+  .dice-display.rolling { animation: diceRoll .5s ease; }
+  @keyframes diceRoll {
+    0% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-20deg) scale(1.2); }
+    50% { transform: rotate(20deg) scale(.9); }
+    75% { transform: rotate(-10deg) scale(1.1); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+  .roll-result { font-family: 'Fredoka One', cursive; font-size: 1.1rem; min-height: 1.5rem; color: var(--accent); margin-bottom: .8rem; }
+
+  /* ── LOG ── */
+  .log-panel { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.2rem; border: 1.5px solid rgba(255,255,255,.08); max-height: 180px; overflow-y: auto; }
+  .log-panel h3 { font-family: 'Fredoka One', cursive; font-size: 1rem; color: var(--accent4); margin-bottom: .6rem; }
+  .log-entry { font-size: .78rem; color: var(--muted); padding: .2rem 0; border-bottom: 1px solid rgba(255,255,255,.04); line-height: 1.5; }
+  .log-entry.highlight { color: var(--text); }
+  .log-panel::-webkit-scrollbar { width: 4px; }
+  .log-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+
+  /* ── WIN SCREEN ── */
+  #winScreen .card { text-align: center; max-width: 520px; }
+  .win-emoji { font-size: 5rem; margin-bottom: 1rem; display: block; animation: bounce 1s ease infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-12px); } }
+  .win-name { font-family: 'Fredoka One', cursive; font-size: 2.5rem; margin-bottom: .5rem; }
+  .win-sub { color: var(--muted); margin-bottom: 2rem; }
+  .final-standings { background: var(--panel); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; text-align: left; }
+  .standing-row { display: flex; align-items: center; gap: .8rem; padding: .4rem 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: .88rem; }
+  .standing-row:last-child { border: none; }
+  .standing-rank { font-family: 'Fredoka One', cursive; font-size: 1.1rem; min-width: 28px; color: var(--muted); }
+  .standing-rank.gold { color: #f7b731; }
+  .standing-rank.silver { color: #b0bec5; }
+  .standing-rank.bronze { color: #a1724f; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--accent); color: #1a1200;
+    font-family: 'Fredoka One', cursive; font-size: 1.1rem;
+    padding: .8rem 2rem; border-radius: 50px;
+    z-index: 9999; transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* confetti */
+  .confetti-piece {
+    position: fixed; width: 8px; height: 12px; top: -20px;
+    animation: confettiFall linear forwards;
+    z-index: 9998; border-radius: 2px;
+  }
+  @keyframes confettiFall {
+    to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+  .pulse { animation: pulse .5s ease 2; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+</style>
+</head>
+<body>
+<div class="stars"></div>
+
+<!-- ══ SCREEN 1: PLAYER COUNT ══ -->
+<div class="screen active" id="screen1">
+  <div class="logo"><span>Snake</span> <span>&amp;</span> <span>Ladders</span></div>
+  <div class="logo-sub">★ The Classic Race ★</div>
+  <div class="card">
+    <h2>How many players?</h2>
+    <div class="player-grid" id="playerGrid"></div>
+    <button class="btn btn-primary" id="nextToStyle" disabled style="width:100%">Choose Style →</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN 2: STYLE ══ -->
+<div class="screen" id="screen2">
+  <div class="card">
+    <h2>Pick your board style</h2>
+    <div class="style-grid" id="styleGrid"></div>
+    <div style="display:flex;gap:.8rem;margin-top:.5rem">
+      <button class="btn btn-outline btn-sm" onclick="goTo('screen1')">← Back</button>
+      <button class="btn btn-primary" id="nextToNames" disabled style="flex:1">Enter Names →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: PLAYER NAMES ══ -->
+<div class="screen" id="screen3">
+  <div class="card">
+    <h2>Name your players</h2>
+    <div id="nameInputs"></div>
+    <div style="display:flex;gap:.8rem;margin-top:.5rem">
+      <button class="btn btn-outline btn-sm" onclick="goTo('screen2')">← Back</button>
+      <button class="btn btn-primary" id="startGameBtn" style="flex:1">Start Game! 🎲</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 4: GAME ══ -->
+<div class="screen" id="gameScreen">
+  <div class="game-layout">
+    <div class="board-wrap">
+      <div class="board-title" id="boardTitle">🎯 Classic Board</div>
+      <canvas id="boardCanvas" width="600" height="600"></canvas>
+    </div>
+    <div class="game-sidebar">
+      <!-- Race Track -->
+      <div class="race-panel">
+        <h3>🏁 Race Progress</h3>
+        <div id="raceTrack"></div>
+      </div>
+      <!-- Current Player -->
+      <div class="current-panel" id="currentPanel">
+        <div class="turn-label">Current Turn</div>
+        <div class="turn-name" id="turnName">-</div>
+        <div class="dice-display" id="diceDisplay">🎲</div>
+        <div class="roll-result" id="rollResult"></div>
+        <button class="btn btn-primary" id="rollBtn" style="width:100%;font-size:1.2rem">Roll Dice 🎲</button>
+      </div>
+      <!-- Log -->
+      <div class="log-panel">
+        <h3>📜 Game Log</h3>
+        <div id="gameLog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5: WIN ══ -->
+<div class="screen" id="winScreen">
+  <div class="card">
+    <span class="win-emoji" id="winEmoji">🏆</span>
+    <div class="win-name" id="winName">Player 1</div>
+    <div class="win-sub">Wins the game! Congratulations!</div>
+    <div class="final-standings" id="finalStandings"></div>
+    <button class="btn btn-primary" onclick="restartGame()" style="width:100%">Play Again 🎲</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   DATA & CONFIG
+══════════════════════════════════════════════════════ */
+const PLAYER_COLORS = [
+  { bg:'#f7b731', text:'#1a1200', emoji:'🟡' },
+  { bg:'#ff6b6b', text:'#fff', emoji:'🔴' },
+  { bg:'#4ecdc4', text:'#003330', emoji:'🟢' },
+  { bg:'#a29bfe', text:'#1a1040', emoji:'🟣' },
+];
+
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+const BOARD_STYLES = [
+  { id:'classic', name:'Classic', icon:'🏛️', desc:'The timeless original board with balanced snakes and ladders' },
+  { id:'jungle', name:'Jungle', icon:'🌴', desc:'Tropical theme — lots of short snakes, big ladders to climb' },
+  { id:'deep', name:'Deep Sea', icon:'🌊', desc:'Aquatic adventure — long scary snakes lurk in the deep' },
+  { id:'chaos', name:'Chaos!', icon:'🌪️', desc:'Unpredictable board — more snakes than ladders. Good luck!' },
+];
+
+// For each style: snakes = {head:tail}, ladders = {bottom:top}
+const BOARD_DATA = {
+  classic: {
+    snakes:  { 97:78, 95:56, 88:24, 62:19, 48:30, 36:6, 32:10 },
+    ladders: { 1:38, 4:14, 9:31, 20:42, 28:76, 40:59, 51:67, 63:81, 71:91 },
+  },
+  jungle: {
+    snakes:  { 93:68, 75:55, 52:35, 44:20, 26:9 },
+    ladders: { 2:23, 5:47, 10:32, 17:53, 36:58, 45:66, 57:77, 61:85, 72:92, 80:98 },
+  },
+  deep: {
+    snakes:  { 98:12, 85:6, 74:48, 65:33, 56:21, 41:3, 28:11, 15:4 },
+    ladders: { 7:29, 18:43, 30:50, 46:63, 60:76, 78:88 },
+  },
+  chaos: {
+    snakes:  { 99:14, 93:7, 86:54, 78:40, 70:25, 62:18, 53:10, 44:3, 35:12, 27:5 },
+    ladders: { 6:25, 20:38, 39:57, 55:73, 74:88 },
+  },
+};
+
+const STYLE_COLORS = {
+  classic: { cellA:'#1e1c40', cellB:'#2a2850', snake:'#ff6b6b', ladder:'#4ecdc4', bg:'#13122e' },
+  jungle:  { cellA:'#0d2213', cellB:'#142f1a', snake:'#ff6b6b', ladder:'#7bed59', bg:'#091a0d' },
+  deep:    { cellA:'#071a2e', cellB:'#0a2440', snake:'#5084ff', ladder:'#4ecdc4', bg:'#04101e' },
+  chaos:   { cellA:'#2a0d0d', cellB:'#380f0f', snake:'#ff4444', ladder:'#f7b731', bg:'#1a0707' },
+};
+
+/* ══════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════ */
+let state = {
+  numPlayers: 0,
+  style: '',
+  players: [],   // {name, color, pos, finished, rank}
+  current: 0,
+  rolling: false,
+  ranks: [],
+  finishOrder: [],
+};
+
+/* ══════════════════════════════════════════════════════
+   SCREEN NAV
+══════════════════════════════════════════════════════ */
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ══════════════════════════════════════════════════════
+   SCREEN 1 — PLAYER COUNT
+══════════════════════════════════════════════════════ */
+const playerGrid = document.getElementById('playerGrid');
+[2,3,4,5,6,7,8].forEach((n,i) => {
+  // only 2-4 for 4 columns, but let's do 2-6 in 2 rows of 2+3
+});
+// Actually render 2–6
+[2,3,4,5,6].forEach(n => {
+  const btn = document.createElement('button');
+  btn.className = 'player-count-btn';
+  btn.innerHTML = `<span>${n}</span><span class="label">${n===1?'Solo':n+' Players'}</span>`;
+  btn.onclick = () => {
+    document.querySelectorAll('.player-count-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.numPlayers = n;
+    document.getElementById('nextToStyle').disabled = false;
+  };
+  playerGrid.appendChild(btn);
+});
+// adjust grid columns
+playerGrid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+
+document.getElementById('nextToStyle').onclick = () => goTo('screen2');
+
+/* ══════════════════════════════════════════════════════
+   SCREEN 2 — STYLE
+══════════════════════════════════════════════════════ */
+const styleGrid = document.getElementById('styleGrid');
+BOARD_STYLES.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'style-card';
+  card.innerHTML = `<span class="icon">${s.icon}</span><div class="name">${s.name}</div><div class="desc">${s.desc}</div>`;
+  card.onclick = () => {
+    document.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    state.style = s.id;
+    document.getElementById('nextToNames').disabled = false;
+  };
+  styleGrid.appendChild(card);
+});
+document.getElementById('nextToNames').onclick = () => { buildNameInputs(); goTo('screen3'); };
+
+/* ══════════════════════════════════════════════════════
+   SCREEN 3 — NAMES
+══════════════════════════════════════════════════════ */
+function buildNameInputs() {
+  const container = document.getElementById('nameInputs');
+  container.innerHTML = '';
+  for (let i = 0; i < state.numPlayers; i++) {
+    const c = PLAYER_COLORS[i % PLAYER_COLORS.length];
+    const row = document.createElement('div');
+    row.className = 'player-name-row';
+    row.innerHTML = `
+      <div class="player-avatar" style="background:${c.bg};color:${c.text}">${c.emoji}</div>
+      <input class="name-input" type="text" placeholder="Player ${i+1}" id="pname${i}" maxlength="18" value="Player ${i+1}">
+    `;
+    container.appendChild(row);
+  }
+}
+document.getElementById('startGameBtn').onclick = initGame;
+
+/* ══════════════════════════════════════════════════════
+   INIT GAME
+══════════════════════════════════════════════════════ */
+function initGame() {
+  state.players = [];
+  state.finishOrder = [];
+  state.current = 0;
+  state.rolling = false;
+
+  for (let i = 0; i < state.numPlayers; i++) {
+    const name = document.getElementById('pname'+i).value.trim() || `Player ${i+1}`;
+    state.players.push({
+      name, color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+      pos: 0, finished: false, rank: 0
+    });
+  }
+
+  buildRaceTrack();
+  updateCurrentPanel();
+  clearLog();
+  drawBoard();
+  goTo('gameScreen');
+  log(`🎮 Game started! ${state.players.map(p=>p.name).join(', ')} — first to 100 wins!`, true);
+}
+
+/* ══════════════════════════════════════════════════════
+   BOARD CANVAS DRAWING
+══════════════════════════════════════════════════════ */
+function cellToXY(cell, size) {
+  if (cell < 1 || cell > 100) return null;
+  const idx = cell - 1;
+  const row = Math.floor(idx / 10);    // 0=bottom
+  const col = idx % 10;
+  const boardRow = 9 - row;            // flip: row0=top
+  const boardCol = row % 2 === 0 ? col : 9 - col;  // zigzag
+  const s = size / 10;
+  return { x: boardCol * s + s / 2, y: boardRow * s + s / 2, s };
+}
+
+function drawBoard() {
+  const canvas = document.getElementById('boardCanvas');
+  const SIZE = canvas.width;
+  const s = SIZE / 10;
+  const ctx = canvas.getContext('2d');
+  const sc = STYLE_COLORS[state.style] || STYLE_COLORS.classic;
+  const data = BOARD_DATA[state.style] || BOARD_DATA.classic;
+
+  // Background
+  ctx.fillStyle = sc.bg;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // Grid cells
+  for (let cell = 1; cell <= 100; cell++) {
+    const {x, y} = cellToXY(cell, SIZE);
+    const row = Math.floor((cell-1)/10);
+    const col = (cell-1)%10;
+    const isLight = (row+col) % 2 === 0;
+    ctx.fillStyle = isLight ? sc.cellA : sc.cellB;
+    const bx = x - s/2, by = y - s/2;
+    ctx.fillRect(bx+1, by+1, s-2, s-2);
+
+    // Cell number
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = `bold ${Math.max(9, s*0.18)}px Nunito`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(cell, x, by+3);
+  }
+
+  // Draw ladders
+  Object.entries(data.ladders).forEach(([bot, top]) => {
+    const b = cellToXY(+bot, SIZE);
+    const t = cellToXY(+top, SIZE);
+    if (!b || !t) return;
+    drawLadder(ctx, b.x, b.y, t.x, t.y, sc.ladder, s);
+  });
+
+  // Draw snakes
+  Object.entries(data.snakes).forEach(([head, tail]) => {
+    const h = cellToXY(+head, SIZE);
+    const ta = cellToXY(+tail, SIZE);
+    if (!h || !ta) return;
+    drawSnake(ctx, h.x, h.y, ta.x, ta.y, sc.snake, s);
+  });
+
+  // Draw player tokens
+  const grouped = {};
+  state.players.forEach((p, i) => {
+    if (!p.finished) {
+      if (!grouped[p.pos]) grouped[p.pos] = [];
+      grouped[p.pos].push({p, i});
+    }
+  });
+  Object.entries(grouped).forEach(([pos, arr]) => {
+    if (+pos === 0) return;
+    const {x, y} = cellToXY(+pos, SIZE);
+    const count = arr.length;
+    const offset = count === 1 ? [{dx:0,dy:0}] :
+      [{dx:-s*.18,dy:-s*.18},{dx:s*.18,dy:-s*.18},{dx:-s*.18,dy:s*.18},{dx:s*.18,dy:s*.18},{dx:0,dy:-s*.2},{dx:0,dy:s*.2}].slice(0, count);
+    arr.forEach(({p, i}, j) => {
+      const {dx, dy} = offset[j] || {dx:0,dy:0};
+      const r = s * 0.22;
+      ctx.beginPath();
+      ctx.arc(x+dx, y+dy, r, 0, Math.PI*2);
+      ctx.fillStyle = p.color.bg;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = p.color.text;
+      ctx.font = `bold ${Math.max(8,r*0.9)}px Nunito`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((i+1).toString(), x+dx, y+dy);
+    });
+  });
+
+  // Start/End labels
+  ctx.font = `bold ${s*.2}px Fredoka One`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const start = cellToXY(1, SIZE);
+  ctx.fillStyle = '#4ecdc4';
+  ctx.fillText('START', start.x, start.y + s*.25);
+  const end = cellToXY(100, SIZE);
+  ctx.fillStyle = '#f7b731';
+  ctx.fillText('WIN!', end.x, end.y + s*.25);
+}
+
+function drawLadder(ctx, x1, y1, x2, y2, color, s) {
+  const len = Math.hypot(x2-x1, y2-y1);
+  const ux = (x2-x1)/len, uy = (y2-y1)/len;
+  const px = -uy, py = ux;
+  const w = s * .09;
+  const rungs = Math.max(3, Math.round(len / (s*.55)));
+
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+
+  // rails
+  [-w, w].forEach(off => {
+    ctx.beginPath();
+    ctx.moveTo(x1+px*off, y1+py*off);
+    ctx.lineTo(x2+px*off, y2+py*off);
+    ctx.stroke();
+  });
+
+  // rungs
+  for (let i = 0; i <= rungs; i++) {
+    const t = i / rungs;
+    const rx = x1 + (x2-x1)*t, ry = y1 + (y2-y1)*t;
+    ctx.beginPath();
+    ctx.moveTo(rx+px*-w*1.1, ry+py*-w*1.1);
+    ctx.lineTo(rx+px*w*1.1, ry+py*w*1.1);
+    ctx.stroke();
+  }
+
+  // arrows at top
+  ctx.lineWidth = 2;
+  const arrowLen = s * .12;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux*arrowLen + px*arrowLen*.5, y2 - uy*arrowLen + py*arrowLen*.5);
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux*arrowLen - px*arrowLen*.5, y2 - uy*arrowLen - py*arrowLen*.5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSnake(ctx, hx, hy, tx, ty, color, s) {
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = s * .1;
+  ctx.lineCap = 'round';
+
+  const mid1x = hx + (tx-hx)*.3 + (ty-hy)*.3;
+  const mid1y = hy + (ty-hy)*.3 - (tx-hx)*.3;
+  const mid2x = hx + (tx-hx)*.7 - (ty-hy)*.3;
+  const mid2y = hy + (ty-hy)*.7 + (tx-hx)*.3;
+
+  ctx.beginPath();
+  ctx.moveTo(hx, hy);
+  ctx.bezierCurveTo(mid1x, mid1y, mid2x, mid2y, tx, ty);
+  ctx.stroke();
+
+  // head
+  ctx.beginPath();
+  ctx.arc(hx, hy, s*.14, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // eyes
+  const angle = Math.atan2(ty-hy, tx-hx) + Math.PI;
+  const eyeR = s*.04;
+  [-0.4, 0.4].forEach(a => {
+    const ex = hx + Math.cos(angle+a)*s*.1;
+    const ey = hy + Math.sin(angle+a)*s*.1;
+    ctx.beginPath();
+    ctx.arc(ex, ey, eyeR, 0, Math.PI*2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ══════════════════════════════════════════════════════
+   RACE TRACK UI
+══════════════════════════════════════════════════════ */
+function buildRaceTrack() {
+  const container = document.getElementById('raceTrack');
+  container.innerHTML = '';
+  state.players.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'race-row';
+    row.id = `race${i}`;
+    row.innerHTML = `
+      <div class="race-header">
+        <span class="race-name" style="color:${p.color.bg}">${p.color.emoji} ${p.name}</span>
+        <span class="race-pos" id="racePos${i}">0/100</span>
+      </div>
+      <div class="race-bar-bg"><div class="race-bar" id="raceBar${i}" style="width:0%;background:${p.color.bg}"></div></div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function updateRaceTrack() {
+  state.players.forEach((p, i) => {
+    const pct = Math.min(100, (p.pos / 100) * 100);
+    document.getElementById(`raceBar${i}`).style.width = pct + '%';
+    document.getElementById(`racePos${i}`).textContent = p.pos + '/100';
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   CURRENT PLAYER PANEL
+══════════════════════════════════════════════════════ */
+function updateCurrentPanel() {
+  const p = state.players[state.current];
+  document.getElementById('turnName').textContent = p.name;
+  document.getElementById('turnName').style.color = p.color.bg;
+  document.getElementById('diceDisplay').textContent = '🎲';
+  document.getElementById('rollResult').textContent = '';
+}
+
+/* ══════════════════════════════════════════════════════
+   DICE ROLL & TURN LOGIC
+══════════════════════════════════════════════════════ */
+document.getElementById('rollBtn').onclick = rollDice;
+
+async function rollDice() {
+  if (state.rolling) return;
+  state.rolling = true;
+  document.getElementById('rollBtn').disabled = true;
+
+  const p = state.players[state.current];
+  const diceEl = document.getElementById('diceDisplay');
+  const resultEl = document.getElementById('rollResult');
+
+  // Animate dice
+  diceEl.classList.add('rolling');
+  let animFrames = 12;
+  for (let i = 0; i < animFrames; i++) {
+    diceEl.textContent = DICE_FACES[Math.floor(Math.random()*6)];
+    await sleep(50);
+  }
+  diceEl.classList.remove('rolling');
+
+  const roll = Math.floor(Math.random()*6)+1;
+  diceEl.textContent = DICE_FACES[roll-1];
+  resultEl.textContent = `Rolled ${roll}!`;
+
+  await sleep(400);
+
+  const oldPos = p.pos;
+  let newPos = oldPos + roll;
+
+  if (newPos > 100) {
+    newPos = oldPos;
+    log(`${p.color.emoji} ${p.name} rolled ${roll} — needs exact roll to finish! (stays at ${oldPos})`);
+    resultEl.textContent = `Needs exact roll!`;
+    await sleep(600);
+  } else {
+    log(`${p.color.emoji} ${p.name} rolled ${roll}: ${oldPos} → ${newPos}`, true);
+    p.pos = newPos;
+    drawBoard();
+    updateRaceTrack();
+    await sleep(500);
+
+    const data = BOARD_DATA[state.style];
+
+    // Check ladder
+    if (data.ladders[newPos]) {
+      const climbed = data.ladders[newPos];
+      log(`🪜 ${p.name} climbs a ladder! ${newPos} → ${climbed}`, true);
+      showToast(`🪜 ${p.name} climbs the ladder!`);
+      await sleep(400);
+      p.pos = climbed;
+      drawBoard();
+      updateRaceTrack();
+      await sleep(500);
+    }
+
+    // Check snake
+    if (data.snakes[newPos]) {
+      const bitten = data.snakes[newPos];
+      log(`🐍 ${p.name} got bitten by a snake! ${newPos} → ${bitten}`, true);
+      showToast(`🐍 ${p.name} got bitten!`);
+      await sleep(400);
+      p.pos = bitten;
+      drawBoard();
+      updateRaceTrack();
+      await sleep(500);
+    }
+
+    // Check win
+    if (p.pos >= 100) {
+      p.pos = 100;
+      p.finished = true;
+      state.finishOrder.push(state.current);
+      p.rank = state.finishOrder.length;
+      log(`🏆 ${p.name} WON the game!`, true);
+      drawBoard();
+      updateRaceTrack();
+      launchConfetti();
+      await sleep(800);
+      showWinScreen();
+      return;
+    }
+  }
+
+  // Advance to next active player
+  state.rolling = false;
+  let next = (state.current + 1) % state.players.length;
+  while (state.players[next].finished) {
+    next = (next + 1) % state.players.length;
+    if (next === state.current) break;
+  }
+  state.current = next;
+  updateCurrentPanel();
+  document.getElementById('rollBtn').disabled = false;
+}
+
+/* ══════════════════════════════════════════════════════
+   LOG
+══════════════════════════════════════════════════════ */
+function log(msg, highlight=false) {
+  const container = document.getElementById('gameLog');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry' + (highlight ? ' highlight' : '');
+  entry.textContent = msg;
+  container.insertBefore(entry, container.firstChild);
+}
+function clearLog() { document.getElementById('gameLog').innerHTML = ''; }
+
+/* ══════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════ */
+let toastTimeout;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+/* ══════════════════════════════════════════════════════
+   WIN SCREEN
+══════════════════════════════════════════════════════ */
+function showWinScreen() {
+  const winner = state.players[state.finishOrder[0]];
+  document.getElementById('winEmoji').textContent = '🏆';
+  document.getElementById('winName').textContent = winner.name;
+  document.getElementById('winName').style.color = winner.color.bg;
+
+  // Standings
+  const sorted = [...state.players].sort((a,b) => {
+    if (a.finished && !b.finished) return -1;
+    if (!a.finished && b.finished) return 1;
+    if (a.finished && b.finished) return a.rank - b.rank;
+    return b.pos - a.pos;
+  });
+  const standings = document.getElementById('finalStandings');
+  standings.innerHTML = '';
+  sorted.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'standing-row';
+    const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣'];
+    row.innerHTML = `
+      <span class="standing-rank ${rankClass}">${medals[i]||`${i+1}.`}</span>
+      <div class="player-avatar" style="width:28px;height:28px;font-size:.85rem;background:${p.color.bg};color:${p.color.text};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">${p.color.emoji}</div>
+      <span style="font-weight:700;color:${p.color.bg}">${p.name}</span>
+      <span style="margin-left:auto;color:var(--muted);font-size:.8rem">Cell ${p.pos}</span>
+    `;
+    standings.appendChild(row);
+  });
+
+  goTo('winScreen');
+}
+
+function restartGame() {
+  state = { numPlayers:0, style:'', players:[], current:0, rolling:false, ranks:[], finishOrder:[] };
+  document.querySelectorAll('.player-count-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('nextToStyle').disabled = true;
+  document.getElementById('nextToNames').disabled = true;
+  goTo('screen1');
+}
+
+/* ══════════════════════════════════════════════════════
+   CONFETTI
+══════════════════════════════════════════════════════ */
+function launchConfetti() {
+  const colors = ['#f7b731','#ff6b6b','#4ecdc4','#a29bfe','#fff'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left:${Math.random()*100}vw;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${1.5+Math.random()*2}s;
+      animation-delay:${Math.random()*.8}s;
+      transform:rotate(${Math.random()*360}deg);
+      width:${6+Math.random()*8}px;
+      height:${8+Math.random()*10}px;
+    `;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════ */
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// Responsive board resize
+function resizeBoard() {
+  const canvas = document.getElementById('boardCanvas');
+  const wrap = canvas.parentElement;
+  const size = wrap.clientWidth - 32;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+}
+window.addEventListener('resize', () => { resizeBoard(); if (state.players.length) drawBoard(); });
+</script>
+</body>
+</html>
